@@ -2,13 +2,13 @@ import torch
 from torch import Tensor
 from typing import Union, Sequence
 from mirtorch.alg import CG, FISTA, POGM, power_iter
-from mirtorch.linear import LinearMap, FFTCn, NuSense, Sense, FFTCn, Identity, Diff2dframe, Gmri, Wavelet2D, \
-    NuSenseFrame, Diff3dframe
+from mirtorch.linear import LinearMap, FFTCn, NuSense, Sense, FFTCn, Identity, Diff2dgram, Gmri, Wavelet2D, \
+    NuSenseGram, Diff3dGram
 
 
 class NuSense_om(LinearMap):
     '''
-    The frame operator $A'A$
+    The operator $A$. Provides gradient w.r.t $x$ and $\omage$.
     Attributes:
         smaps: sensitivity maps in [nbatch, nc, nx, ny, (nz)]
         traj: sampling trajectory in size [dim, npoints]
@@ -102,9 +102,9 @@ class NuSense_om(LinearMap):
         return self.adjoint_op(y, self.traj, self.A)
 
 
-class NuSenseFrame_om(LinearMap):
+class NuSenseGram_om(LinearMap):
     '''
-    The frame operator $A'A$, using the Toeplitz embedding
+    The Grame operator $A'A$, using the Toeplitz embedding. Provides gradient w.r.t x and omage
     Attributes:
         smaps: sensitivity maps in [nbatch, nc, nx, ny, (nz)]
         traj: sampling trajectory in size [dim, npoints]
@@ -122,7 +122,7 @@ class NuSenseFrame_om(LinearMap):
         batchmode = True
         self.A = NuSense(smaps, traj, norm=norm, batchmode=True, numpoints=numpoints, grid_size=grid_size)
         # self.AHA = self.A.H*self.A
-        self.AHA = NuSenseFrame(smaps, traj, norm=norm, batchmode=batchmode, numpoints=numpoints, grid_size=grid_size)
+        self.AHA = NuSenseGram(smaps, traj, norm=norm, batchmode=batchmode, numpoints=numpoints, grid_size=grid_size)
         im_size = smaps.shape[2:]
 
         class Aforward(torch.autograd.Function):
@@ -131,7 +131,6 @@ class NuSenseFrame_om(LinearMap):
                 ctx.save_for_backward(ktraj, x)
                 ctx.AHA = AHA
                 ctx.A = A
-                # print('allocate forward frame', torch.cuda.max_memory_allocated())
                 return AHA * x
 
             @staticmethod
@@ -164,7 +163,7 @@ class NuSenseFrame_om(LinearMap):
 
         self.forward_op = Aforward.apply
 
-        super(NuSenseFrame_om, self).__init__(tuple(self.A.size_in), tuple(self.A.size_in), device=smaps.device)
+        super(NuSenseGram_om, self).__init__(tuple(self.A.size_in), tuple(self.A.size_in), device=smaps.device)
 
     def _apply(self, x):
         return self.forward_op(x, self.traj, self.AHA, self.A)
@@ -173,9 +172,9 @@ class NuSenseFrame_om(LinearMap):
         return self.forward_op(y, self.traj, self.AHA, self.A)
 
 
-class Frame_inv(LinearMap):
+class Gram_inv(LinearMap):
     '''
-    The frame operator $(A'A+\lambdaI(^{-1}$, using the conjugate gradient to resolve.
+    The inverse operator $(A'A+\lambdaI(^{-1}$, using the conjugate gradient to resolve. Provides gradient w.r.t x and omage
     Attributes:
         smaps: sensitivity maps in [nbatch, nc, nx, ny, (nz)]
         traj: sampling trajectory in size [dim, npoints]
@@ -201,7 +200,7 @@ class Frame_inv(LinearMap):
         im_size = smaps.shape[2:]
         I = Identity(self.A.size_in)
         # self.AHA = self.A.H*self.A + lambd * I
-        self.AHA = NuSenseFrame(smaps, traj, norm=norm, batchmode=batchmode, numpoints=numpoints, grid_size=grid_size) + lambd * I
+        self.AHA = NuSenseGram(smaps, traj, norm=norm, batchmode=batchmode, numpoints=numpoints, grid_size=grid_size) + lambd * I
         self.x0 = x0
         self.solver_forward = CG(self.AHA, max_iter=max_iter, tol=tol, alert=alert)
 
@@ -248,7 +247,7 @@ class Frame_inv(LinearMap):
 
         self.forward_op = Aforward.apply
 
-        super(Frame_inv, self).__init__(tuple(self.A.size_in), tuple(self.A.size_in), device=smaps.device)
+        super(Gram_inv, self).__init__(tuple(self.A.size_in), tuple(self.A.size_in), device=smaps.device)
 
     def _apply(self, x):
         if self.x0 is None:
