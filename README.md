@@ -6,7 +6,7 @@ This repo provides a PyTorch-based reimplementation of 'B-spline Parameterized J
 
 Since researchers' usually have personalized training pipeline, we currently provide the key components, the B-spline parameterization of trajectory and the efficient calculation of NUFFT Jacobian here. You may plug it into your own training modules with minimal modifications. However, if the demands for a runnable, self-contained code are high (please open an issue if needed), we will also provide whole package. 
 
-`sys_ops.py` contains the forward mode, adjoint model, frame operaor, and the inverse $(A'A+\lambda I)^{-1}$. The Jacobian is approximated by the efficient algorithm detailed in 'Efficient approximation of Jacobian matrices involving a non-uniform fast Fourier transform (NUFFT)'. The implementation use the MRI system matrix provided by [MIRTorch](https://github.com/guanhuaw/MIRTorch).
+`sys_op.py` contains the forward mode, adjoint model, frame operaor, and the inverse $(A'A+\lambda I)^{-1}$. The Jacobian is approximated by the efficient algorithm detailed in 'Efficient approximation of Jacobian matrices involving a non-uniform fast Fourier transform (NUFFT)'. The implementation use the MRI system matrix provided by [MIRTorch](https://github.com/guanhuaw/MIRTorch).
 
 `bspline.py` provides the B-spline parameterization of the sampling trajectory. 
 
